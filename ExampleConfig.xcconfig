@@ -1,0 +1,14 @@
+//
+//  ExampleConfig.xcconfig
+//  RunTracker
+//
+//  Created by Michael Callahan on 10/24/26.
+//
+
+// Configuration settings file format documentation can be found at:
+// https://developer.apple.com/documentation/xcode/adding-a-build-configuration-file-to-your-project
+
+STRAVA_CLIENT_ID = 123456789
+
+APP_CALLBACK_SCHEME = com.yourname.appname
+APP_CALLBACK_HOST = localhost

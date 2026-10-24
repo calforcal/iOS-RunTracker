@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>AppCallbackHost</key>
+	<string>$(APP_CALLBACK_HOST)</string>
+	<key>AppCallbackScheme</key>
+	<string>$(APP_CALLBACK_SCHEME)</string>
+	<key>StravaClientID</key>
+	<string>$(STRAVA_CLIENT_ID)</string>
+</dict>
+</plist>

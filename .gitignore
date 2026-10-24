@@ -1,0 +1,38 @@
+# macOS
+.DS_Store
+
+# Xcode user-specific
+xcuserdata/
+*.xcuserstate
+*.xcscmblueprint
+*.xccheckout
+
+# Build output
+build/
+DerivedData/
+*.moved-aside
+*.hmap
+*.ipa
+*.dSYM.zip
+*.dSYM
+
+# Swift Package Manager
+.build/
+.swiftpm/
+# Keep Package.resolved committed so builds are reproducible
+
+# CocoaPods (uncomment if you use it)
+# Pods/
+
+# Carthage
+Carthage/Build/
+
+# fastlane
+fastlane/report.xml
+fastlane/Preview.html
+fastlane/screenshots/**/*.png
+fastlane/test_output
+
+# Secrets / local config
+Config.xcconfig
+.env

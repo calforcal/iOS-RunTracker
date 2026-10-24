@@ -1,0 +1,955 @@
+openapi: 3.0.3
+info:
+  title: Run Tracker API
+  description: >
+    Public-facing API for the Run Tracker service: Strava/Spotify OAuth
+    login, athlete and activity data proxied from Strava, Spotify listening
+    history correlated to activities, and the Strava webhook callback used
+    to receive activity push events.
+
+
+    This spec covers only the application's user-facing and third-party
+    callback endpoints. It excludes the admin/backoffice webhook-subscription
+    management endpoints (`POST`, `DELETE`, and `GET /view` under
+    `/api/webhooks/strava`), which are gated by a separate static admin
+    bearer token and are operational tooling rather than part of the public
+    API surface.
+  version: "1.0.0"
+servers:
+  - url: http://localhost:8000
+    description: Local development
+
+tags:
+  - name: Home
+    description: Service liveness/landing endpoint.
+  - name: Auth
+    description: Strava/Spotify OAuth code exchange and session token issuance.
+  - name: Athlete
+    description: Authenticated athlete profile and Strava activity data.
+  - name: Users
+    description: Authenticated user resources, such as Spotify listening history.
+  - name: Webhooks
+    description: Strava webhook subscription handshake and event delivery.
+
+paths:
+  /:
+    get:
+      tags: [Home]
+      summary: Service landing endpoint
+      operationId: getRoot
+      security: []
+      responses:
+        "200":
+          description: Service is up.
+          content:
+            text/plain:
+              schema:
+                type: string
+                example: "Hello, World!"
+
+  /api/home:
+    get:
+      tags: [Home]
+      summary: Service landing endpoint (API-prefixed alias)
+      operationId: getApiHome
+      security: []
+      responses:
+        "200":
+          description: Service is up.
+          content:
+            text/plain:
+              schema:
+                type: string
+                example: "Hello, World!"
+
+  /api/login:
+    post:
+      tags: [Auth]
+      summary: Log in with a Strava OAuth code
+      description: >
+        Exchanges a Strava OAuth authorization code, upserts the user, ensures
+        any already-linked Spotify token is still valid, and issues a session
+        token.
+      operationId: login
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ExchangeCodeRequest"
+      responses:
+        "200":
+          description: Session token issued.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TokenResponse"
+        "400":
+          description: Missing or invalid request body.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          description: Failed to exchange code or issue token.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /api/strava/authorize-user:
+    post:
+      tags: [Auth]
+      summary: Authorize (link/create) a user via a Strava OAuth code
+      description: >
+        Exchanges a Strava OAuth authorization code, upserts the user, and
+        issues a session token, without touching any linked Spotify
+        credentials.
+      operationId: authorizeStravaUser
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ExchangeCodeRequest"
+      responses:
+        "200":
+          description: Session token issued.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TokenResponse"
+        "400":
+          description: Missing or invalid request body.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          description: Failed to exchange code or issue token.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /api/spotify/authorize-user:
+    post:
+      tags: [Auth]
+      summary: Link a Spotify account to the authenticated user
+      description: >
+        Links a Spotify account to the already-authenticated (Strava) user
+        identified by the bearer token on the request, and re-issues a
+        session token.
+      operationId: authorizeSpotifyUser
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ExchangeCodeRequest"
+      responses:
+        "200":
+          description: Session token re-issued.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TokenResponse"
+        "400":
+          description: Missing or invalid request body, or no valid user UUID in token.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Invalid bearer token.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: Missing Authorization header.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          description: Failed to link Spotify account or issue token.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /api/athlete:
+    get:
+      tags: [Athlete]
+      summary: Get the authenticated athlete's profile
+      operationId: getAthlete
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Athlete profile.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AthleteResponse"
+        "400":
+          description: No user found for the authenticated UUID.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Missing or invalid bearer token.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          description: Failed to fetch athlete from Strava.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /api/athlete/activities:
+    get:
+      tags: [Athlete]
+      summary: List the authenticated athlete's Strava activities
+      operationId: getAthleteActivities
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: List of activities.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ActivityResponse"
+        "400":
+          description: No user found for the authenticated UUID.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Missing or invalid bearer token.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          description: Failed to fetch activities from Strava.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /api/athlete/activities/{activity_id}:
+    get:
+      tags: [Athlete]
+      summary: Get a single activity by its Strava ID
+      description: >
+        Returns the detailed activity plus any Spotify listening history the
+        webhook pipeline has correlated to it.
+      operationId: getActivityByStravaId
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/ActivityId"
+      responses:
+        "200":
+          description: Detailed activity, with correlated listening history.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DetailedActivityResponse"
+        "400":
+          description: No user found for the authenticated UUID.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Missing or invalid bearer token.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          description: Failed to fetch the activity or listening history.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /api/athlete/activities/{activity_id}/stream:
+    get:
+      tags: [Athlete]
+      summary: Get the time-series data streams for an activity
+      operationId: getActivityStream
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/ActivityId"
+      responses:
+        "200":
+          description: Activity data streams (e.g. heartrate, cadence, distance).
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ActivityStreamResponse"
+        "400":
+          description: No user found for the authenticated UUID.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Missing or invalid bearer token.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          description: Failed to fetch the activity stream from Strava.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /api/users/listening-history:
+    get:
+      tags: [Users]
+      summary: Get the authenticated user's Spotify listening history
+      operationId: getListeningHistory
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: after
+          in: query
+          description: Unix timestamp; only return tracks played after this time.
+          schema:
+            type: integer
+            format: int64
+        - name: before
+          in: query
+          description: Unix timestamp; only return tracks played before this time.
+          schema:
+            type: integer
+            format: int64
+      responses:
+        "200":
+          description: Listening history.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ListeningHistoryResponse"
+        "400":
+          description: No user found, invalid request parameters, or no linked Spotify account.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Missing or invalid bearer token.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          description: Failed to refresh the Spotify token or fetch history.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /api/webhooks/strava/activity:
+    get:
+      tags: [Webhooks]
+      summary: Strava webhook subscription validation handshake
+      description: >
+        Handles Strava's subscription-validation callback
+        (`hub.mode`/`hub.challenge`/`hub.verify_token`) and echoes back the
+        challenge when the verify token matches.
+      operationId: verifyWebhookCallback
+      security: []
+      parameters:
+        - name: hub.mode
+          in: query
+          required: true
+          schema:
+            type: string
+          example: subscribe
+        - name: hub.challenge
+          in: query
+          required: true
+          schema:
+            type: string
+        - name: hub.verify_token
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Challenge echoed back to Strava.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  hub.challenge:
+                    type: string
+                required: [hub.challenge]
+        "400":
+          description: Invalid or missing query parameters.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    post:
+      tags: [Webhooks]
+      summary: Receive a Strava webhook event
+      description: >
+        Accepts a Strava push-subscription event (new/updated activity,
+        athlete deauthorization, etc.) and processes it asynchronously.
+        Always returns immediately with 200 once the body is accepted.
+      operationId: processWebhooks
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/WebhookEventRequest"
+      responses:
+        "200":
+          description: Event accepted for asynchronous processing.
+          content:
+            application/json:
+              schema:
+                type: object
+                nullable: true
+                example: null
+        "400":
+          description: Invalid request body.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: >
+        Session token issued by /api/login, /api/strava/authorize-user, or
+        /api/spotify/authorize-user.
+
+  parameters:
+    ActivityId:
+      name: activity_id
+      in: path
+      required: true
+      description: Strava activity ID.
+      schema:
+        type: string
+
+  schemas:
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+      required: [error]
+
+    ExchangeCodeRequest:
+      type: object
+      properties:
+        code:
+          type: string
+      required: [code]
+
+    TokenResponse:
+      type: object
+      properties:
+        access_token:
+          type: string
+      required: [access_token]
+
+    WebhookEventRequest:
+      type: object
+      properties:
+        aspect_type:
+          type: string
+          example: create
+        event_time:
+          type: integer
+          format: int64
+        object_id:
+          type: integer
+        object_type:
+          type: string
+          example: activity
+        owner_id:
+          type: integer
+          format: int64
+        subscription_id:
+          type: integer
+
+    BikeResponse:
+      type: object
+      properties:
+        id:
+          type: string
+        primary:
+          type: boolean
+        name:
+          type: string
+        resource_state:
+          type: integer
+        distance:
+          type: number
+          format: double
+
+    ShoeResponse:
+      type: object
+      properties:
+        id:
+          type: string
+        primary:
+          type: boolean
+        name:
+          type: string
+        resource_state:
+          type: integer
+        distance:
+          type: number
+          format: double
+
+    AthleteResponse:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+        username:
+          type: string
+        resource_state:
+          type: integer
+        firstname:
+          type: string
+        lastname:
+          type: string
+        city:
+          type: string
+        state:
+          type: string
+        country:
+          type: string
+        sex:
+          type: string
+        premium:
+          type: boolean
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+        badge_type_id:
+          type: integer
+        profile_medium:
+          type: string
+        profile:
+          type: string
+        friend:
+          type: boolean
+          nullable: true
+        follower:
+          type: boolean
+          nullable: true
+        follower_count:
+          type: integer
+        friend_count:
+          type: integer
+        mutual_friend_count:
+          type: integer
+        athlete_type:
+          type: integer
+        date_preference:
+          type: string
+        measurement_preference:
+          type: string
+        ftp:
+          type: number
+          format: double
+          nullable: true
+        weight:
+          type: number
+          format: double
+        bikes:
+          type: array
+          items:
+            $ref: "#/components/schemas/BikeResponse"
+        shoes:
+          type: array
+          items:
+            $ref: "#/components/schemas/ShoeResponse"
+        is_spotify_connected:
+          type: boolean
+
+    ActivityAthleteResponse:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+        resource_state:
+          type: integer
+
+    ActivityMapResponse:
+      type: object
+      properties:
+        id:
+          type: string
+        summary_polyline:
+          type: string
+          nullable: true
+        resource_state:
+          type: integer
+
+    PolylineMapResponse:
+      allOf:
+        - $ref: "#/components/schemas/ActivityMapResponse"
+        - type: object
+          properties:
+            polyline:
+              type: string
+
+    ActivityResponse:
+      type: object
+      properties:
+        resource_state:
+          type: integer
+        athlete:
+          $ref: "#/components/schemas/ActivityAthleteResponse"
+        name:
+          type: string
+        distance:
+          type: number
+          format: double
+        moving_time:
+          type: integer
+        elapsed_time:
+          type: integer
+        total_elevation_gain:
+          type: number
+          format: double
+        type:
+          type: string
+        sport_type:
+          type: string
+        workout_type:
+          type: integer
+          nullable: true
+        id:
+          type: integer
+          format: int64
+        external_id:
+          type: string
+        upload_id:
+          type: integer
+          format: int64
+        start_date:
+          type: string
+          format: date-time
+        start_date_local:
+          type: string
+          format: date-time
+        timezone:
+          type: string
+        utc_offset:
+          type: number
+          format: double
+        start_latlng:
+          type: array
+          nullable: true
+          items:
+            type: number
+            format: double
+        end_latlng:
+          type: array
+          nullable: true
+          items:
+            type: number
+            format: double
+        location_city:
+          type: string
+          nullable: true
+        location_state:
+          type: string
+          nullable: true
+        location_country:
+          type: string
+          nullable: true
+        achievement_count:
+          type: integer
+        kudos_count:
+          type: integer
+        comment_count:
+          type: integer
+        athlete_count:
+          type: integer
+        photo_count:
+          type: integer
+        map:
+          $ref: "#/components/schemas/ActivityMapResponse"
+        trainer:
+          type: boolean
+        commute:
+          type: boolean
+        manual:
+          type: boolean
+        private:
+          type: boolean
+        flagged:
+          type: boolean
+        gear_id:
+          type: string
+          nullable: true
+        from_accepted_tag:
+          type: boolean
+        average_speed:
+          type: number
+          format: double
+        max_speed:
+          type: number
+          format: double
+        average_cadence:
+          type: number
+          format: double
+          nullable: true
+        average_watts:
+          type: number
+          format: double
+          nullable: true
+        weighted_average_watts:
+          type: number
+          format: double
+          nullable: true
+        kilojoules:
+          type: number
+          format: double
+          nullable: true
+        device_watts:
+          type: boolean
+          nullable: true
+        has_heartrate:
+          type: boolean
+          nullable: true
+        average_heartrate:
+          type: number
+          format: double
+          nullable: true
+        max_heartrate:
+          type: number
+          format: double
+          nullable: true
+        max_watts:
+          type: number
+          format: double
+          nullable: true
+        pr_count:
+          type: integer
+        total_photo_count:
+          type: integer
+        has_kudoed:
+          type: boolean
+        suffer_score:
+          type: number
+          format: double
+          nullable: true
+
+    SongResponse:
+      type: object
+      properties:
+        title:
+          type: string
+        artist:
+          type: string
+        album_title:
+          type: string
+        duration_ms:
+          type: integer
+        image_url:
+          type: string
+        uri:
+          type: string
+        spotify_id:
+          type: string
+
+    ListeningHistoryItemResponse:
+      type: object
+      properties:
+        song:
+          $ref: "#/components/schemas/SongResponse"
+        played_at:
+          type: string
+          format: date-time
+
+    ListeningHistoryResponse:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/ListeningHistoryItemResponse"
+
+    DetailedActivityResponse:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+        external_id:
+          type: string
+        upload_id:
+          type: integer
+          format: int64
+        name:
+          type: string
+        distance:
+          type: number
+          format: double
+        moving_time:
+          type: integer
+        elapsed_time:
+          type: integer
+        total_elevation_gain:
+          type: number
+          format: double
+        elev_high:
+          type: number
+          format: double
+        elev_low:
+          type: number
+          format: double
+        type:
+          type: string
+        sport_type:
+          type: string
+        start_date:
+          type: string
+          format: date-time
+        start_date_local:
+          type: string
+          format: date-time
+        timezone:
+          type: string
+        start_latlng:
+          type: array
+          items:
+            type: number
+            format: double
+        end_latlng:
+          type: array
+          items:
+            type: number
+            format: double
+        achievement_count:
+          type: integer
+        kudos_count:
+          type: integer
+        comment_count:
+          type: integer
+        athlete_count:
+          type: integer
+        photo_count:
+          type: integer
+        total_photo_count:
+          type: integer
+        map:
+          $ref: "#/components/schemas/PolylineMapResponse"
+        trainer:
+          type: boolean
+        commute:
+          type: boolean
+        manual:
+          type: boolean
+        private:
+          type: boolean
+        flagged:
+          type: boolean
+        workout_type:
+          type: integer
+        upload_id_str:
+          type: string
+        average_speed:
+          type: number
+          format: double
+        max_speed:
+          type: number
+          format: double
+        has_kudoed:
+          type: boolean
+        hide_from_home:
+          type: boolean
+        gear_id:
+          type: string
+        kilojoules:
+          type: number
+          format: double
+        average_watts:
+          type: number
+          format: double
+        device_watts:
+          type: boolean
+        max_watts:
+          type: integer
+        weighted_average_watts:
+          type: integer
+        Description:
+          type: string
+          description: >
+            Intentionally capitalized to match the exact (historically
+            inconsistent) key the frontend has always received.
+        calories:
+          type: number
+          format: double
+        device_name:
+          type: string
+        embed_token:
+          type: string
+        songs:
+          type: array
+          description: Spotify listening history correlated to this activity. Empty (never null) when nothing was found.
+          items:
+            $ref: "#/components/schemas/ListeningHistoryItemResponse"
+
+    ActivityStreamResponse:
+      type: object
+      properties:
+        type:
+          type: string
+          example: heartrate
+        data:
+          type: array
+          items: {}
+        series_type:
+          type: string
+        original_size:
+          type: integer
+        resolution:
+          type: string
