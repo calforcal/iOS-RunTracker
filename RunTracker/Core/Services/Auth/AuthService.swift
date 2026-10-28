@@ -20,7 +20,7 @@ struct AuthService {
     ) {
         self.client = client
         self.webSession = webSession
-        self.tokenStore = AuthTokenStore()
+        self.tokenStore = .shared
     }
     
     private static let callbackScheme = Environment.appCallbackScheme

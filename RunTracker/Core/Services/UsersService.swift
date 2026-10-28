@@ -19,5 +19,10 @@ struct UsersService {
         let body = try response.ok.body.plainText
         return try await String(collecting: body, upTo: 1024 * 1024)
     }
-
+    
+    func fetchAthlete() async throws -> Components.Schemas.AthleteResponse {
+        let response = try await client.getAthlete()
+        let body = try response.ok.body.json
+        return body
+    }
 }

@@ -7,7 +7,6 @@
 
 
 import SwiftUI
-import OpenAPIURLSession
 
 @main
 struct RunTrackerApp: App {
@@ -15,10 +14,7 @@ struct RunTrackerApp: App {
     let authService: AuthService
     
     init() {
-        let client = Client(
-            serverURL: URL(string: "https://run-tracker-api-saqxt.ondigitalocean.app")!,
-            transport: URLSessionTransport()
-        )
+        let client = APIClient.shared
         userService = UsersService(client: client)
         authService = AuthService(client: client, webSession: ASWebAuthenticator()
         )

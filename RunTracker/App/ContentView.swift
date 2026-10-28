@@ -82,6 +82,13 @@ struct ContentView: View {
         Button("Click") {
             Task {
                 await authService.authenticate()
+                
+                do {
+                    let athlete = try await self.userService.fetchAthlete()
+                    print("ATHLETE TOO: \(athlete)")
+                } catch {
+                    print("ERROR fetching athlete: \(error)")
+                }
             }
         }
     }

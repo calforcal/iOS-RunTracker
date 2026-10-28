@@ -4,9 +4,7 @@ import OpenAPIURLSession
 
 enum APIClient {
     static let shared: Client = {
-        guard let serverURL = try? Servers.Server1.url() else {
-            fatalError("Invalid server URL in openapi.yaml")
-        }
+        let serverURL = URL(string: "https://run-tracker-api-saqxt.ondigitalocean.app")!
         return Client(
             serverURL: serverURL,
             transport: URLSessionTransport(),
