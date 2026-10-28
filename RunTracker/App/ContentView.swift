@@ -21,64 +21,10 @@ struct ContentView: View {
         self.authService = authService
     }
 
-    private static let callbackScheme = Environment.appCallbackScheme
-    private static let stravaRedirectURI = "\(Environment.appCallbackScheme)://\(Environment.appCallbackHost)"
-
-    private func stravaAuthURL(base: String) -> URL {
-        func encode(_ value: String) -> String {
-            value.addingPercentEncoding(withAllowedCharacters: .alphanumerics) ?? value
-        }
-
-        var components = URLComponents(string: base)!
-        components.percentEncodedQueryItems = [
-            .init(name: "client_id", value: Environment.stravaClientID),
-            .init(name: "redirect_uri", value: encode(Self.stravaRedirectURI)),
-            .init(name: "response_type", value: "code"),
-            .init(name: "approval_prompt", value: "auto"),
-            .init(name: "scope", value: encode("read,activity:read_all")),
-            .init(name: "state", value: "login")
-        ]
-        return components.url!
-    }
-
-    private var webOAuthUrl: URL {
-        stravaAuthURL(base: "https://www.strava.com/oauth/authorize")
-    }
-
-    private var appOAuthUrlStravaScheme: URL {
-        stravaAuthURL(base: "strava://oauth/mobile/authorize")
-    }
-
     @SwiftUI.Environment(\.webAuthenticationSession) private var webAuthenticationSession
     @State private var healthResponse: String = ""
     @State private var errorMessage: String = ""
     @State private var loadingAPI: Bool = false
-
-    private func authenticate() async {
-        print("🔑 authenticate() called")
-        print("🔑 URL:", webOAuthUrl)
-        if UIApplication.shared.canOpenURL(appOAuthUrlStravaScheme) {
-            await UIApplication.shared.open(appOAuthUrlStravaScheme, options: [:])
-        } else {
-            do {
-                let callbackURL = try await webAuthenticationSession.authenticate(
-                    using: webOAuthUrl,
-                    callbackURLScheme: Self.callbackScheme
-                )
-                print("🔑 Callback:", callbackURL)
-                try await authService.handleLogin(url: callbackURL)
-                
-                print("AUTHED")
-            } catch {
-                print("🔑 Error:", error)
-                errorMessage = "Failed to authenticate"
-            }
-        }
-    }
-    
-    private func exchangeStravaToken() async {
-        
-    }
     
     var body: some View {
         NavigationStack {
@@ -135,7 +81,7 @@ struct ContentView: View {
         }
         Button("Click") {
             Task {
-                await authenticate()
+                await authService.authenticate()
             }
         }
     }
