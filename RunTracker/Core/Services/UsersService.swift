@@ -5,6 +5,7 @@
 //  Created by Michael Callahan on 10/14/26.
 //
 
+import Foundation
 import OpenAPIRuntime
 
 struct UsersService {
@@ -20,9 +21,11 @@ struct UsersService {
         return try await String(collecting: body, upTo: 1024 * 1024)
     }
     
-    func fetchAthlete() async throws -> Components.Schemas.AthleteResponse {
-        let response = try await client.getAthlete()
-        let body = try response.ok.body.json
-        return body
+    func fetchAthlete() async throws -> Athlete {
+        let response: Components.Schemas.AthleteResponse = try await client.getAthlete().ok.body.json
+        guard let athlete = Athlete(response) else {
+            throw URLError(.cannotParseResponse)
+        }
+        return athlete
     }
 }

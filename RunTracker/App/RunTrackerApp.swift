@@ -7,11 +7,19 @@
 
 
 import SwiftUI
+import Foundation
+
+@Observable
+class AppState {
+    var athlete: Athlete? = nil
+}
 
 @main
 struct RunTrackerApp: App {
     let userService: UsersService
     let authService: AuthService
+    
+    @State var appState = AppState()
     
     init() {
         let client = APIClient.shared
@@ -21,10 +29,18 @@ struct RunTrackerApp: App {
     }
     var body: some Scene {
         WindowGroup {
-            ContentView(
-                userService: userService,
-                authService: authService
-            )
+            Group {
+                if let athlete = appState.athlete {
+                    AthleteOverview(athlete: athlete)
+                } else {
+                    ContentView(
+                        userService: userService,
+                        authService: authService
+                    )
+                }
+            }
+            .environment(appState)
+            .animation(.default, value: appState.athlete != nil)
         }
     }
 }

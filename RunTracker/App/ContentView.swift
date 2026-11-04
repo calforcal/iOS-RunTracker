@@ -26,6 +26,8 @@ struct ContentView: View {
     @State private var errorMessage: String = ""
     @State private var loadingAPI: Bool = false
     
+    @SwiftUI.Environment(AppState.self) private var appState
+    
     var body: some View {
         NavigationStack {
             VStack {
@@ -85,7 +87,7 @@ struct ContentView: View {
                 
                 do {
                     let athlete = try await self.userService.fetchAthlete()
-                    print("ATHLETE TOO: \(athlete)")
+                    appState.athlete = athlete
                 } catch {
                     print("ERROR fetching athlete: \(error)")
                 }
