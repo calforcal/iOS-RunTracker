@@ -28,4 +28,10 @@ struct UsersService {
         }
         return athlete
     }
+    
+    func fetchListeningHistory() async throws -> ListeningHistory {
+        let response: Components.Schemas.ListeningHistoryResponse = try await client.getListeningHistory().ok.body.json
+        let listeningHistory = ListeningHistory(response)
+        return listeningHistory
+    }
 }

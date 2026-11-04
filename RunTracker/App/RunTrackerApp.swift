@@ -31,7 +31,10 @@ struct RunTrackerApp: App {
         WindowGroup {
             Group {
                 if let athlete = appState.athlete {
-                    AthleteOverview(athlete: athlete)
+                    AthleteOverview(
+                        athlete: athlete,
+                        usersService: userService
+                    )
                 } else {
                     ContentView(
                         userService: userService,
