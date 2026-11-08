@@ -31,23 +31,18 @@ struct AthleteOverview: View {
                     .padding()
                 Spacer()
             }
-            HStack {
-                if athlete.isSpotifyConnected {
-                    Text("Spotify Connected")
-                } else {
-                    Text("Spotify not connected yet.")
-                }
-            }
             List {
-                Section { Text("Listening History") }
                 if isFetchingData {
                     ProgressView("Loading")
                 } else {
                     ForEach(listeningHistory.items) { song in
                         SongItem(listeningHistoryItem: song)
+                            .listRowBackground(Color.clear)
                     }
                 }
             }
+            .scrollContentBackground(.hidden)         // hide the List's default background
+            .background(Color(red: 1.0, green: 0.89, blue: 0.88))
             Spacer()
             List {
                 Section { Text("Activities") }

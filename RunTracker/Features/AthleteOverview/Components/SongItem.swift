@@ -15,18 +15,26 @@ struct SongItem: View {
         
         VStack(alignment: .leading) {
             HStack {
-                Text("\(song.title)")
-                    .bold()
-            }
-            HStack {
-                Text("\(song.artist)")
-                    .italic()
-            }
-            HStack {
-                Text("Played At: \(listeningHistoryItem.playedAt.formatted(date: .long, time: .shortened))")
+                VStack(alignment: .leading) {
+                    HStack {
+                        Text("\(song.title)")
+                            .bold()
+                    }
+                    .frame(alignment: .leading)
+                    HStack {
+                        Text("\(song.artist)")
+                            .italic()
+                    }
+                    .frame(alignment: .leading)
+                }
+                Spacer()
+                Image(systemName: "play.circle.fill")
+                    .font(.system(size: 30))
+                    .foregroundStyle(.white)
             }
         }
         .padding()
+        .frame(maxWidth: .infinity, alignment: .leading)
         .background(Color.pink.ignoresSafeArea())
         .cornerRadius(10)
     }
@@ -58,5 +66,8 @@ extension ListeningHistoryItem {
 #Preview {
     List {
         SongItem(listeningHistoryItem: .mock)
+            .listRowBackground(Color.clear)
     }
+    .scrollContentBackground(.hidden)         // hide the List's default background
+    .background(Color(red: 1.0, green: 0.89, blue: 0.88))
 }
