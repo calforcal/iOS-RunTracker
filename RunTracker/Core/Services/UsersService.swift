@@ -34,4 +34,10 @@ struct UsersService {
         let listeningHistory = ListeningHistory(response)
         return listeningHistory
     }
+    
+    func fetchAthleteActivities() async throws -> [Activity] {
+        let response: [Components.Schemas.ActivityResponse] = try await client.getAthleteActivities().ok.body.json
+        let activities = response.compactMap(Activity.init)
+        return activities
+    }
 }

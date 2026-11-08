@@ -20,7 +20,9 @@ struct AthleteOverview: View {
     }
     
     @State private var listeningHistory = ListeningHistory(items: [])
-    @State private var isLoadingListeningHistory = false
+    @State private var activities = [Activity]()
+    @State private var isFetchingData = false
+    
     
     var body: some View {
         VStack {
@@ -38,11 +40,22 @@ struct AthleteOverview: View {
             }
             List {
                 Section { Text("Listening History") }
-                if isLoadingListeningHistory {
+                if isFetchingData {
                     ProgressView("Loading")
                 } else {
                     ForEach(listeningHistory.items) { song in
-                        Text("\(song.song.title) by \(song.song.artist)")
+                        SongItem(listeningHistoryItem: song)
+                    }
+                }
+            }
+            Spacer()
+            List {
+                Section { Text("Activities") }
+                if isFetchingData {
+                    ProgressView("Loading")
+                } else {
+                    ForEach(activities) { activity in
+                        Text("\(activity.name) of type \(activity.sportType.displayName)")
                     }
                 }
             }
@@ -51,15 +64,16 @@ struct AthleteOverview: View {
         .task {
             do {
                 listeningHistory = try await usersService.fetchListeningHistory()
+                activities = try await usersService.fetchAthleteActivities()
             } catch {
                 print("Error fetching")
             }
-            isLoadingListeningHistory = false
+            isFetchingData = false
         }
     }
 }
 
-#Preview {
-    let athlete = Athlete(Components.Schemas.AthleteResponse(id: 1, firstname: "Michael", lastname: "Callahan", is_spotify_connected: false))!
-    AthleteOverview(athlete: athlete, usersService: UsersService(client: APIClient.shared))
-}
+//#Preview {
+//    let athlete = Athlete(Components.Schemas.AthleteResponse(id: 1, firstname: "Michael", lastname: "Callahan", is_spotify_connected: false))!
+//    AthleteOverview(athlete: athlete, usersService: UsersService(client: APIClient.shared))
+//}
