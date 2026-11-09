@@ -45,12 +45,11 @@ struct AthleteOverview: View {
             .background(Color(red: 1.0, green: 0.89, blue: 0.88))
             Spacer()
             List {
-                Section { Text("Activities") }
                 if isFetchingData {
                     ProgressView("Loading")
                 } else {
                     ForEach(activities) { activity in
-                        Text("\(activity.name) of type \(activity.sportType.displayName)")
+                        ActivityListItem(activity: activity)
                     }
                 }
             }
